@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/binarycurious/jira-backup-go
+	branch = master
+	commit = 9cbce656f054f4f41782021d85e9111828dd0ff3
+	parent = efe1a5ed4e51dac8c1639f40ffd0ebe0962ce31a
+	method = merge
+	cmdver = 0.4.3
