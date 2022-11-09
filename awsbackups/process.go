@@ -24,25 +24,35 @@ import (
 )
 
 var config envConfig
+var bucketName string
 
-func (s *lambdaState) goodToGo(action string) bool {
-
-	t, err := time.Parse(time.RFC3339, s.LastExecution)
+func init() {
+	err := godotenv.Load("/etc/.env")
 	if err != nil {
-		fmt.Println("Could not parse last exec. time")
-		fmt.Println(err)
-		t = time.Now().Add(time.Duration(time.Hour * 72 / -1))
+		log.Fatal("Error loading .env file")
 	}
 
-	switch action {
-	case actionInit:
-		return t.Add(time.Hour * time.Duration(hrsInitBackup)).Before(time.Now())
-	case actionSaveJira:
-		return t.Add(time.Hour * time.Duration(hrsDownloadJira)).Before(time.Now())
-	case actionSaveConf:
-		return t.Add(time.Hour * time.Duration(hrsDownloadConf)).Before(time.Now())
+	enVars := os.Environ()
+
+	for itm := range enVars {
+		if os.Getenv("DEBUG") == "true" {
+			fmt.Printf(strings.Split(enVars[itm], "=")[0])
+			fmt.Println(" = " + strings.Split(enVars[itm], "=")[1])
+		}
 	}
-	return false
+
+	bucketName = os.Getenv("AWS_S3_BUCKETNAME")
+
+	if bucketName == "" {
+		log.Fatal("No S3 bucket name set for backups (AWS_S3_BUCKETNAME)")
+	}
+
+	config = envConfig{
+		email:    os.Getenv("API_EMAIL"),
+		apiToken: os.Getenv("API_TOKEN"),
+		hostname: os.Getenv("API_HOSTNAME"),
+	}
+
 }
 
 // HandleRequest ...
@@ -189,6 +199,7 @@ func initBackups(s *lambdaState) (string, error) {
 		confResp, err := ioutil.ReadAll(cr.Body)
 		if err != nil {
 			failProc(s, actionInit, err)
+
 		}
 
 		if strings.Contains(string(confResp), "backup") {
@@ -410,27 +421,4 @@ func pullState() lambdaState {
 	fmt.Println("Successfully Loaded " + stateFileName)
 
 	return stateData
-}
-
-func init() {
-	err := godotenv.Load("/etc/.env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	enVars := os.Environ()
-
-	for itm := range enVars {
-		if os.Getenv("DEBUG") == "true" {
-			fmt.Printf(strings.Split(enVars[itm], "=")[0])
-			fmt.Println(" = " + strings.Split(enVars[itm], "=")[1])
-		}
-	}
-
-	config = envConfig{
-		email:    os.Getenv("API_EMAIL"),
-		apiToken: os.Getenv("API_TOKEN"),
-		hostname: os.Getenv("API_HOSTNAME"),
-	}
-
 }

@@ -1,5 +1,10 @@
 package awsbackups
 
+import (
+	"fmt"
+	"time"
+)
+
 // ExecEvent ...
 // AWS Event passed by lambda exectution
 type ExecEvent struct {
@@ -12,6 +17,26 @@ type lambdaState struct {
 	LastJiraTaskID string `json:"lastJiraTaskID"`
 	LastResult     string `json:"lastResult"`
 	ErrData        string `json:"errData"`
+}
+
+func (s *lambdaState) goodToGo(action string) bool {
+
+	t, err := time.Parse(time.RFC3339, s.LastExecution)
+	if err != nil {
+		fmt.Println("Could not parse last exec. time")
+		fmt.Println(err)
+		t = time.Now().Add(time.Duration(time.Hour * 72 / -1))
+	}
+
+	switch action {
+	case actionInit:
+		return t.Add(time.Hour * time.Duration(hrsInitBackup)).Before(time.Now())
+	case actionSaveJira:
+		return t.Add(time.Hour * time.Duration(hrsDownloadJira)).Before(time.Now())
+	case actionSaveConf:
+		return t.Add(time.Hour * time.Duration(hrsDownloadConf)).Before(time.Now())
+	}
+	return false
 }
 
 type progressData struct {

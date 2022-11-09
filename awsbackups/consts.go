@@ -6,7 +6,6 @@ const (
 	hrsDownloadJira int = 4
 	hrsDownloadConf int = 4
 	//s3 strings
-	bucketName     string = "jiraandconfluencebackups"
 	statePath      string = "lambda-state"
 	stateFileName  string = "state.json"
 	confS3BackPath string = "confluence/"
