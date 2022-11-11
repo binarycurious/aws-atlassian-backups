@@ -108,16 +108,20 @@ func HandleRequest(ctx context.Context, event ExecEvent) (string, error) {
 
 	s.LastExecution = time.Now().Format(time.RFC3339)
 
+	saveState(&s)
+
+	return resp, err
+}
+
+func saveState(s *lambdaState) {
+	fmt.Printf("Saving state file : %#v\n", s)
+
 	j, err := json.Marshal(s)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	uploadS3Stream(statePath, stateFileName, bytes.NewReader(j), &s, actionPushState)
-
-	fmt.Printf("Saved state file : %#v\n", s)
-
-	return resp, err
+	uploadS3Stream(statePath, stateFileName, bytes.NewReader(j), s, actionPushState)
 }
 
 func createAPIRequest(path string, body string, s *lambdaState, actionInProc string, method string) *http.Request {
@@ -340,37 +344,13 @@ func failProc(s *lambdaState, actionInProc string, err error) {
 	}
 
 	s.ErrData = fmt.Sprintln(err)
-	s.LastResult = "Failed"
+	s.LastResult = stateFailed
 	s.LastExecution = time.Now().Local().String()
 	s.LastAction = actionInProc
-	uploadS3File(statePath, stateFileName, s, actionPushState)
+
+	saveState(s)
 
 	log.Fatal(err)
-}
-
-func uploadS3File(path string, filename string, s *lambdaState, actionInProc string) {
-	// The session the S3 Uploader will use
-	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(endpoints.ApSoutheast2RegionID)}))
-
-	// Create an uploader with the session and default options
-	uploader := s3manager.NewUploader(sess)
-
-	f, err := os.Open(filename)
-	if err != nil {
-		failProc(s, actionInProc, fmt.Errorf("failed to open file %q, %v", filename, err))
-	}
-
-	// Upload the file to S3.
-	result, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(path + "/" + filename),
-		Body:   f,
-	})
-	if err != nil {
-		failProc(s, actionInProc, fmt.Errorf("failed to upload file %q, %v", filename, err))
-	}
-
-	fmt.Printf("file uploaded to, %s\n", result.Location)
 }
 
 func uploadS3Stream(path string, key string, stream io.Reader, s *lambdaState, actionInProc string) {
