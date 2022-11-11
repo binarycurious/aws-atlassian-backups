@@ -29,8 +29,10 @@ func (s *lambdaState) goodToGo(action string) bool {
 	}
 
 	switch action {
-	case actionInit:
+	case actionInitJira:
 		return t.Add(time.Hour * time.Duration(hrsInitBackup)).Before(time.Now())
+	case actionInitConf:
+		return t.Add(time.Hour * time.Duration(hrsConfInit)).Before(time.Now())
 	case actionSaveJira:
 		return t.Add(time.Hour * time.Duration(hrsDownloadJira)).Before(time.Now())
 	case actionSaveConf:

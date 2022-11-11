@@ -68,9 +68,17 @@ func HandleRequest(ctx context.Context, event ExecEvent) (string, error) {
 	fmt.Printf("Executing with state: %#v", s)
 
 	switch s.LastAction {
-	case actionInit:
+	case actionInitJira:
 		if s.LastResult != stateOK {
-			resp, err = initBackups(&s)
+			resp, err = initJira(&s)
+		} else {
+			resp, err = initConf(&s)
+			s.LastAction = actionInitConf
+		}
+
+	case actionInitConf:
+		if s.LastResult != stateOK {
+			resp, err = initConf(&s)
 		} else {
 			resp, err = saveJiraBackup(&s)
 			s.LastAction = actionSaveJira
@@ -88,8 +96,8 @@ func HandleRequest(ctx context.Context, event ExecEvent) (string, error) {
 		if s.LastResult != stateOK {
 			resp, err = saveConfBackup(&s)
 		} else {
-			resp, err = initBackups(&s)
-			s.LastAction = actionInit
+			resp, err = initJira(&s)
+			s.LastAction = actionInitJira
 		}
 	}
 
@@ -139,8 +147,8 @@ func createAPIRequest(path string, body string, s *lambdaState, actionInProc str
 	return r
 }
 
-func initBackups(s *lambdaState) (string, error) {
-	if !s.goodToGo(actionInit) {
+func initJira(s *lambdaState) (string, error) {
+	if !s.goodToGo(actionInitJira) {
 		fmt.Println("Waiting for execution delay, last execution " + s.LastExecution)
 		return stateWait, nil
 	}
@@ -158,28 +166,43 @@ func initBackups(s *lambdaState) (string, error) {
 				os.Getenv("EXPORT_TO_CLOUD"),
 			),
 			s,
-			actionInit,
+			actionInitJira,
 			http.MethodPost,
 		)
 
 		resp, err := http.DefaultClient.Do(jiraBakReq)
 		if err != nil {
-			failProc(s, actionInit, err)
+			failProc(s, actionInitJira, err)
 		}
 
 		resBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			failProc(s, actionInit, err)
+			failProc(s, actionInitJira, err)
 		}
 
 		if strings.Contains(string(resBody), "\"error\"") {
-			failProc(s, actionInit, fmt.Errorf("Failed to initialize the backup in Jira %s", string(resBody)))
+			failProc(s, actionInitJira, fmt.Errorf("Failed to initialize the backup in Jira %s", string(resBody)))
 		}
 
 		fmt.Println("Successfully initialized Jira backup process...")
 
 		wg.Done()
 	}()
+
+	wg.Wait()
+
+	return "success", nil
+}
+
+func initConf(s *lambdaState) (string, error) {
+	if !s.goodToGo(actionInitConf) {
+		fmt.Println("Waiting for execution delay, last execution " + s.LastExecution)
+		return stateWait, nil
+	}
+
+	fmt.Println("Exectuing backup init...")
+
+	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
@@ -189,7 +212,7 @@ func initBackups(s *lambdaState) (string, error) {
 				os.Getenv("INCLUDE_ATTACHMENTS"),
 			),
 			s,
-			actionInit,
+			actionInitConf,
 			http.MethodPost,
 		)
 		confBakReq.Header.Add("X-Atlassian-Token", "no-check")
@@ -197,17 +220,16 @@ func initBackups(s *lambdaState) (string, error) {
 
 		cr, err := http.DefaultClient.Do(confBakReq)
 		if err != nil {
-			failProc(s, actionInit, err)
+			failProc(s, actionInitConf, err)
 		}
 
 		confResp, err := ioutil.ReadAll(cr.Body)
 		if err != nil {
-			failProc(s, actionInit, err)
-
+			failProc(s, actionInitConf, err)
 		}
 
 		if strings.Contains(string(confResp), "backup") {
-			failProc(s, actionInit, fmt.Errorf("Failed to initialize the backup in Confluence %s", string(confResp)))
+			failProc(s, actionInitConf, fmt.Errorf("Failed to initialize the backup in Confluence %s", string(confResp)))
 		}
 
 		fmt.Println("Successfully initialized Confluence backup process...")
