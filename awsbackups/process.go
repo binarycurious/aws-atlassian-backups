@@ -41,9 +41,14 @@ func init() {
 	}
 
 	bucketName := os.Getenv("AWS_S3_BUCKETNAME")
+	s3Region := os.Getenv("AWS_S3_REGION")
 
 	if bucketName == "" {
 		log.Fatal("No S3 bucket name set for backups (AWS_S3_BUCKETNAME)")
+	}
+
+	if s3Region == "" {
+		s3Region = endpoints.ApSoutheast2RegionID
 	}
 
 	config = envConfig{
@@ -51,6 +56,7 @@ func init() {
 		apiToken:   os.Getenv("API_TOKEN"),
 		hostname:   os.Getenv("API_HOSTNAME"),
 		bucketName: bucketName,
+		region:     s3Region,
 	}
 
 }
@@ -377,7 +383,7 @@ func failProc(s *lambdaState, actionInProc string, err error) {
 
 func uploadS3Stream(path string, key string, stream io.Reader, s *lambdaState, actionInProc string) {
 	// The session the S3 Uploader will use
-	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(endpoints.ApSoutheast2RegionID)}))
+	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(config.region)}))
 
 	// Create an uploader with the session and default options
 	uploader := s3manager.NewUploader(sess)
@@ -396,7 +402,7 @@ func uploadS3Stream(path string, key string, stream io.Reader, s *lambdaState, a
 }
 
 func loadStateFromS3(path string, fileName string, s *lambdaState, actionInProc string) {
-	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(endpoints.ApSoutheast2RegionID)}))
+	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(config.region)}))
 
 	downloader := s3manager.NewDownloader(sess)
 

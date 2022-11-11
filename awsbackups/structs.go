@@ -64,4 +64,5 @@ type envConfig struct {
 	apiToken   string
 	hostname   string
 	bucketName string
+	region     string
 }
