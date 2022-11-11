@@ -24,7 +24,6 @@ import (
 )
 
 var config envConfig
-var bucketName string
 
 func init() {
 	err := godotenv.Load("/etc/.env")
@@ -41,16 +40,17 @@ func init() {
 		}
 	}
 
-	bucketName = os.Getenv("AWS_S3_BUCKETNAME")
+	bucketName := os.Getenv("AWS_S3_BUCKETNAME")
 
 	if bucketName == "" {
 		log.Fatal("No S3 bucket name set for backups (AWS_S3_BUCKETNAME)")
 	}
 
 	config = envConfig{
-		email:    os.Getenv("API_EMAIL"),
-		apiToken: os.Getenv("API_TOKEN"),
-		hostname: os.Getenv("API_HOSTNAME"),
+		email:      os.Getenv("API_EMAIL"),
+		apiToken:   os.Getenv("API_TOKEN"),
+		hostname:   os.Getenv("API_HOSTNAME"),
+		bucketName: bucketName,
 	}
 
 }
@@ -282,7 +282,7 @@ func saveJiraBackup(s *lambdaState) (string, error) {
 	fileKey := fmt.Sprintf(fmtJiraFile, time.Now().Format(time.RFC3339))
 	uploadS3Stream(jiraS3BackPath, fileKey, dl.Body, s, actionSaveConf)
 
-	fmt.Printf("Completed jira backup file sync to S3 : s3://%s/%s/%s\n", bucketName, jiraS3BackPath, fileKey)
+	fmt.Printf("Completed jira backup file sync to S3 : s3://%s/%s/%s\n", config.bucketName, jiraS3BackPath, fileKey)
 	return "success", nil
 }
 
@@ -332,7 +332,7 @@ func saveConfBackup(s *lambdaState) (string, error) {
 	fileKey := fmt.Sprintf(fmtConfFile, time.Now().Format(time.RFC3339))
 	uploadS3Stream(confS3BackPath, fileKey, dl.Body, s, actionSaveConf)
 
-	fmt.Printf("Completed confluence backup file sync to S3 : s3://%s/%s/%s\n", bucketName, confS3BackPath, fileKey)
+	fmt.Printf("Completed confluence backup file sync to S3 : s3://%s/%s/%s\n", config.bucketName, confS3BackPath, fileKey)
 
 	return "success", nil
 }
@@ -362,7 +362,7 @@ func uploadS3Stream(path string, key string, stream io.Reader, s *lambdaState, a
 
 	// Upload the file to S3.
 	result, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(bucketName),
+		Bucket: aws.String(config.bucketName),
 		Key:    aws.String(path + "/" + key),
 		Body:   stream,
 	})
@@ -381,7 +381,7 @@ func loadStateFromS3(path string, fileName string, s *lambdaState, actionInProc 
 	buf := aws.NewWriteAtBuffer([]byte{})
 
 	n, err := downloader.Download(buf, &s3.GetObjectInput{
-		Bucket: aws.String(bucketName),
+		Bucket: aws.String(config.bucketName),
 		Key:    aws.String(path + "/" + fileName),
 	})
 
