@@ -12,6 +12,7 @@ You will need to add a .env file to your runtime environment that contains the v
 "API_TOKEN"
 "API_HOSTNAME"
 "AWS_S3_BUCKETNAME"
+"AWS_S3_REGION"
 
 This module is based on information provided by Atlassian which is not in LTS, this module may need to be updated if the Atlassian backup process changes. See notes at : https://confluence.atlassian.com/jirakb/automate-backups-for-jira-cloud-779160659.html
 
