@@ -8,11 +8,22 @@ The consts module file contains various values that relate to how the state file
 
 You will need to add a .env file to your runtime environment that contains the variables for your Atalassian API and S3 bucket name or you will need to set these environment variables another way.
 
+
+### Required Environment variables
+
 "API_EMAIL"
 "API_TOKEN"
 "API_HOSTNAME"
 "AWS_S3_BUCKETNAME"
+
+### Optional Environment variables
+
 "AWS_S3_REGION"
+"AWS_S3_STATE_PATH"
+"AWS_S3_JIRA_PATH"
+"AWS_S3_CONFLUENCE_PATH"
+
+## Importand Notes Re. compatibility
 
 This module is based on information provided by Atlassian which is not in LTS, this module may need to be updated if the Atlassian backup process changes. See notes at : https://confluence.atlassian.com/jirakb/automate-backups-for-jira-cloud-779160659.html
 

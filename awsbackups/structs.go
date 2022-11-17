@@ -65,4 +65,7 @@ type envConfig struct {
 	hostname   string
 	bucketName string
 	region     string
+	statePath  string
+	jiraS3Path string
+	confS3Path string
 }

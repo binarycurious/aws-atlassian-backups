@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/binarycurious/go-string-helpers/stringhelpers"
 	"github.com/joho/godotenv"
 )
 
@@ -41,14 +42,10 @@ func init() {
 	}
 
 	bucketName := os.Getenv("AWS_S3_BUCKETNAME")
-	s3Region := os.Getenv("AWS_S3_REGION")
+	s3Region := *stringhelpers.CoalesceWhitespace(os.Getenv("AWS_S3_REGION"), endpoints.ApSoutheast2RegionID)
 
 	if bucketName == "" {
 		log.Fatal("No S3 bucket name set for backups (AWS_S3_BUCKETNAME)")
-	}
-
-	if s3Region == "" {
-		s3Region = endpoints.ApSoutheast2RegionID
 	}
 
 	config = envConfig{
@@ -57,6 +54,9 @@ func init() {
 		hostname:   os.Getenv("API_HOSTNAME"),
 		bucketName: bucketName,
 		region:     s3Region,
+		statePath:  *stringhelpers.CoalesceWhitespace(os.Getenv("AWS_S3_STATE_PATH"), statePath),
+		jiraS3Path: *stringhelpers.CoalesceWhitespace(os.Getenv("AWS_S3_JIRA_PATH"), jiraS3BackPath),
+		confS3Path: *stringhelpers.CoalesceWhitespace(os.Getenv("AWS_S3_CONFLUENCE_PATH"), confS3BackPath),
 	}
 
 }
@@ -135,7 +135,7 @@ func saveState(s *lambdaState) {
 		log.Fatal(err)
 	}
 
-	uploadS3Stream(statePath, stateFileName, bytes.NewReader(j), s, actionPushState)
+	uploadS3Stream(config.statePath, stateFileName, bytes.NewReader(j), s, actionPushState)
 }
 
 func createAPIRequest(path string, body string, s *lambdaState, actionInProc string, method string) *http.Request {
@@ -308,9 +308,9 @@ func saveJiraBackup(s *lambdaState) (string, error) {
 	}
 
 	fileKey := fmt.Sprintf(fmtJiraFile, time.Now().Format(time.RFC3339))
-	uploadS3Stream(jiraS3BackPath, fileKey, dl.Body, s, actionSaveConf)
+	uploadS3Stream(config.jiraS3Path, fileKey, dl.Body, s, actionSaveConf)
 
-	fmt.Printf("Completed jira backup file sync to S3 : s3://%s/%s/%s\n", config.bucketName, jiraS3BackPath, fileKey)
+	fmt.Printf("Completed jira backup file sync to S3 : s3://%s/%s/%s\n", config.bucketName, config.jiraS3Path, fileKey)
 	return "success", nil
 }
 
@@ -358,9 +358,9 @@ func saveConfBackup(s *lambdaState) (string, error) {
 	}
 
 	fileKey := fmt.Sprintf(fmtConfFile, time.Now().Format(time.RFC3339))
-	uploadS3Stream(confS3BackPath, fileKey, dl.Body, s, actionSaveConf)
+	uploadS3Stream(config.confS3Path, fileKey, dl.Body, s, actionSaveConf)
 
-	fmt.Printf("Completed confluence backup file sync to S3 : s3://%s/%s/%s\n", config.bucketName, confS3BackPath, fileKey)
+	fmt.Printf("Completed confluence backup file sync to S3 : s3://%s/%s/%s\n", config.bucketName, config.confS3Path, fileKey)
 
 	return "success", nil
 }
@@ -424,7 +424,7 @@ func loadStateFromS3(path string, fileName string, s *lambdaState, actionInProc 
 func pullState() lambdaState {
 	var stateData lambdaState
 
-	loadStateFromS3(statePath, stateFileName, &stateData, "")
+	loadStateFromS3(config.statePath, stateFileName, &stateData, "")
 
 	fmt.Println("Successfully Loaded " + stateFileName)
 
